@@ -7,28 +7,21 @@
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@4.3.1/dist/css/bootstrap.min.css" integrity="sha384-ggOyR0iXCbMQv3Xipma34MD+dH/1fQ784/j6cY/iJTQUOhcWr7x9JvoRxT2MZw1T" crossorigin="anonymous">
 </head>
 <body>
-	<h1>Project 3</h1>
-	<h2>Cardinal Group #8</h2>
-	<ul>
-		<li>Rachel K.</li>
-		<li>Stephen L.</li>
-		<li>Ashton D.</li>
-		<li>Andrew L.</li>
-	</ul>
-	<p>
-		<b>Api call to: </b>
-
-		<ol>
-			<li>http://api.esportsearnings.com/v0/LookupHighestEarningPlayers</li>
-			<li>
-				http://api.esportsearnings.com/v0/LookupPlayerById
-			</li>
-			<li>
-				http://api.esportsearnings.com/v0/LookupPlayerTournaments
-			</li>
-		</ol>
-	</p>
-	<hr>
+  <h1>Project 3</h1>
+  <h2>Cardinal Group #8</h2>
+  <ul>
+    <li>Rachel K.</li>
+    <li>Stephen L.</li>
+    <li>Ashton D.</li>
+    <li>Andrew L.</li>
+  </ul>
+  <p><b>Api call to:</b></p>
+  <ol>
+    <li>http://api.esportsearnings.com/v0/LookupHighestEarningPlayers</li>
+    <li>http://api.esportsearnings.com/v0/LookupPlayerById</li>
+    <li>http://api.esportsearnings.com/v0/LookupPlayerTournaments</li>
+  </ol>
+  <hr>
   <h2>Top Earning Players</h2>
   <table class='table'>
     <thead>
@@ -51,23 +44,20 @@
   </table>
 
   <script>
-    const tournamentData = {}; // Store tournament data globally to avoid repeated API calls
+    const tournamentData = {};
 
-    // Delay function to introduce a pause between API calls
     function delay(ms) {
       return new Promise(resolve => setTimeout(resolve, ms));
     }
 
-    // Function to fetch and display player data
     async function loadPlayerData() {
       try {
         const response = await fetch('/highest_players');
         const data = await response.json();
         const playerData = document.getElementById('playerData');
-        playerData.innerHTML = ''; // Clear previous data
+        playerData.innerHTML = '';
 
         for (const player of data) {
-          // Create a row for each player with placeholder columns for tournament info
           const playerRow = document.createElement('tr');
           playerRow.className = 'player-info';
           playerRow.innerHTML = `
@@ -76,16 +66,15 @@
             <td>${player["Player Handle"]}</td>
             <td>$${player["Total Prize Money"]}</td>
             <td>${player["Country"]}</td>
-            <td>${player["CountryRanking"] || 'Loading...'}</td>
-            <td>${player["WorldRanking"] || 'Loading...'}</td>
-            <td>${player["TotalTournaments"] || 'Loading...'}</td>
+            <td id="rank-${player["Player Id"]}">Loading...</td>
+            <td id="world-${player["Player Id"]}">Loading...</td>
+            <td id="tournaments-${player["Player Id"]}">Loading...</td>
             <td id="latest-tournament-${player["Player Id"]}">Loading...</td>
             <td id="latest-prize-${player["Player Id"]}">Loading...</td>
             <td><button onclick="toggleDetails(${player["Player Id"]})">Show More</button></td>
           `;
           playerData.appendChild(playerRow);
 
-          // Sub-row for additional tournament details (initially hidden)
           const detailsRow = document.createElement('tr');
           detailsRow.className = 'details-row';
           detailsRow.id = `details-${player["Player Id"]}`;
@@ -97,17 +86,15 @@
           `;
           playerData.appendChild(detailsRow);
 
-          // Fetch additional player details and tournament data
           loadPlayerDetails(player["Player Id"]);
           await loadPlayerTournaments(player["Player Id"]);
-          await delay(1000); // 1-second delay between tournament calls to respect rate limit
+          await delay(1000);
         }
       } catch (error) {
         console.error('Error fetching data:', error);
       }
     }
 
-    // Function to fetch player details
     function loadPlayerDetails(playerId) {
       fetch(`/player_info/${playerId}`)
         .then(response => response.json())
@@ -125,13 +112,10 @@
       try {
         const response = await fetch(`/player_tournaments/${playerId}`);
         const tournaments = await response.json();
-
-        // Store the tournament data globally
         tournamentData[playerId] = tournaments;
 
-        // Display the latest tournament data in the main table
         if (tournaments && tournaments.length > 0) {
-          const latestTournament = tournaments[0]; // Assume latest is first in array
+          const latestTournament = tournaments[0];
           document.getElementById(`latest-tournament-${playerId}`).textContent = latestTournament.TournamentName;
           document.getElementById(`latest-prize-${playerId}`).textContent = `$${latestTournament.Prize} (${latestTournament.CurrencyCode})`;
         }
@@ -140,12 +124,10 @@
       }
     }
 
-    // Toggle function to show/hide the details row for each player
     function toggleDetails(playerId) {
       const detailsRow = document.getElementById(`details-${playerId}`);
       const detailsDiv = document.getElementById(`tournament-details-${playerId}`);
       if (detailsRow.style.display === 'none') {
-        // Populate the additional details only when expanding
         detailsDiv.innerHTML = '';
         const tournaments = tournamentData[playerId];
         if (tournaments && tournaments.length > 0) {
@@ -168,7 +150,6 @@
       }
     }
 
-    // Call the function when the page loads
     window.addEventListener('load', loadPlayerData);
   </script>
 
