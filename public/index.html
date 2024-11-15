@@ -1,0 +1,182 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Esports Earnings App</title>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@4.3.1/dist/css/bootstrap.min.css" integrity="sha384-ggOyR0iXCbMQv3Xipma34MD+dH/1fQ784/j6cY/iJTQUOhcWr7x9JvoRxT2MZw1T" crossorigin="anonymous">
+</head>
+<body>
+	<h1>Project 3</h1>
+	<h2>Cardinal Group #8</h2>
+	<ul>
+		<li>Rachel K.</li>
+		<li>Stephen L.</li>
+		<li>Ashton D.</li>
+		<li>Andrew L.</li>
+	</ul>
+	<p>
+		<b>Api call to: </b>
+
+		<ol>
+			<li>http://api.esportsearnings.com/v0/LookupHighestEarningPlayers</li>
+			<li>
+				http://api.esportsearnings.com/v0/LookupPlayerById
+			</li>
+			<li>
+				http://api.esportsearnings.com/v0/LookupPlayerTournaments
+			</li>
+		</ol>
+	</p>
+	<hr>
+  <h2>Top Earning Players</h2>
+  <table class='table'>
+    <thead>
+      <tr>
+        <th>Player Id</th>
+        <th>Player Name</th>
+        <th>Player Handle</th>
+        <th>Total Earnings</th>
+        <th>Country</th>
+        <th>Country Rank</th>
+        <th>World Rank</th>
+        <th>Total Tournaments</th>
+        <th>Latest Tournament</th>
+        <th>Latest Prize</th>
+        <th>Details</th>
+      </tr>
+    </thead>
+    <tbody id="playerData">
+    </tbody>
+  </table>
+
+  <script>
+    const tournamentData = {}; // Store tournament data globally to avoid repeated API calls
+
+    // Delay function to introduce a pause between API calls
+    function delay(ms) {
+      return new Promise(resolve => setTimeout(resolve, ms));
+    }
+
+    // Function to fetch and display player data
+    async function loadPlayerData() {
+      try {
+        const response = await fetch('/highest_players');
+        const data = await response.json();
+        const playerData = document.getElementById('playerData');
+        playerData.innerHTML = ''; // Clear previous data
+
+        for (const player of data) {
+          // Create a row for each player with placeholder columns for tournament info
+          const playerRow = document.createElement('tr');
+          playerRow.className = 'player-info';
+          playerRow.innerHTML = `
+            <td>${player["Player Id"]}</td>
+            <td>${player["Player Name"]}</td>
+            <td>${player["Player Handle"]}</td>
+            <td>$${player["Total Prize Money"]}</td>
+            <td>${player["Country"]}</td>
+            <td>${player["CountryRanking"] || 'Loading...'}</td>
+            <td>${player["WorldRanking"] || 'Loading...'}</td>
+            <td>${player["TotalTournaments"] || 'Loading...'}</td>
+            <td id="latest-tournament-${player["Player Id"]}">Loading...</td>
+            <td id="latest-prize-${player["Player Id"]}">Loading...</td>
+            <td><button onclick="toggleDetails(${player["Player Id"]})">Show More</button></td>
+          `;
+          playerData.appendChild(playerRow);
+
+          // Sub-row for additional tournament details (initially hidden)
+          const detailsRow = document.createElement('tr');
+          detailsRow.className = 'details-row';
+          detailsRow.id = `details-${player["Player Id"]}`;
+          detailsRow.style.display = 'none';
+          detailsRow.innerHTML = `
+            <td colspan="11">
+              <div id="tournament-details-${player["Player Id"]}">Loading tournament details...</div>
+            </td>
+          `;
+          playerData.appendChild(detailsRow);
+
+          // Fetch additional player details and tournament data
+          loadPlayerDetails(player["Player Id"]);
+          await loadPlayerTournaments(player["Player Id"]);
+          await delay(1000); // 1-second delay between tournament calls to respect rate limit
+        }
+      } catch (error) {
+        console.error('Error fetching data:', error);
+      }
+    }
+
+    // Function to fetch player details
+    function loadPlayerDetails(playerId) {
+      fetch(`/player_info/${playerId}`)
+        .then(response => response.json())
+        .then(details => {
+          document.getElementById(`rank-${playerId}`).textContent = details["CountryRanking"];
+          document.getElementById(`world-${playerId}`).textContent = details["WorldRanking"];
+          document.getElementById(`tournaments-${playerId}`).textContent = details["TotalTournaments"];
+        })
+        .catch(error => {
+          console.error(`Error fetching details for player ${playerId}:`, error);
+        });
+    }
+
+    async function loadPlayerTournaments(playerId) {
+      try {
+        const response = await fetch(`/player_tournaments/${playerId}`);
+        const tournaments = await response.json();
+
+        // Store the tournament data globally
+        tournamentData[playerId] = tournaments;
+
+        // Display the latest tournament data in the main table
+        if (tournaments && tournaments.length > 0) {
+          const latestTournament = tournaments[0]; // Assume latest is first in array
+          document.getElementById(`latest-tournament-${playerId}`).textContent = latestTournament.TournamentName;
+          document.getElementById(`latest-prize-${playerId}`).textContent = `$${latestTournament.Prize} (${latestTournament.CurrencyCode})`;
+        }
+      } catch (error) {
+        console.error(`Error fetching tournaments for player ${playerId}:`, error);
+      }
+    }
+
+    // Toggle function to show/hide the details row for each player
+    function toggleDetails(playerId) {
+      const detailsRow = document.getElementById(`details-${playerId}`);
+      const detailsDiv = document.getElementById(`tournament-details-${playerId}`);
+      if (detailsRow.style.display === 'none') {
+        // Populate the additional details only when expanding
+        detailsDiv.innerHTML = '';
+        const tournaments = tournamentData[playerId];
+        if (tournaments && tournaments.length > 0) {
+          tournaments.forEach(tournament => {
+            const tournamentInfo = document.createElement('p');
+            tournamentInfo.innerHTML = `
+              <strong>${tournament.TournamentName}</strong>: $${tournament.Prize} (${tournament.CurrencyCode}),
+              Rank: ${tournament.RankText}, End Date: ${tournament.EndDate}, Notes: ${tournament.Note || 'N/A'}
+            `;
+            detailsDiv.appendChild(tournamentInfo);
+          });
+        } else {
+          detailsDiv.textContent = 'No tournament details available';
+        }
+        detailsRow.style.display = 'table-row';
+        document.querySelector(`[onclick="toggleDetails(${playerId})"]`).textContent = "Hide Details";
+      } else {
+        detailsRow.style.display = 'none';
+        document.querySelector(`[onclick="toggleDetails(${playerId})"]`).textContent = "Show More";
+      }
+    }
+
+    // Call the function when the page loads
+    window.addEventListener('load', loadPlayerData);
+  </script>
+
+  <style>
+    .details-row {
+      background-color: #f9f9f9;
+      font-size: 0.9em;
+    }
+  </style>
+</body>
+</html>
